@@ -1,8 +1,10 @@
 package info.androidhive.navigationdrawer.activity;
 
 import android.content.Intent;
+import android.databinding.DataBindingUtil;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
@@ -23,21 +25,21 @@ import android.widget.Toast;
 import java.util.concurrent.TimeUnit;
 
 import info.androidhive.navigationdrawer.R;
+import info.androidhive.navigationdrawer.databinding.ActivityMainBinding;
 import info.androidhive.navigationdrawer.fragment.HomeFragment;
 import info.androidhive.navigationdrawer.fragment.MoviesFragment;
 import info.androidhive.navigationdrawer.fragment.NotificationsFragment;
 import info.androidhive.navigationdrawer.fragment.PhotosFragment;
 import info.androidhive.navigationdrawer.fragment.SettingsFragment;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
-    private NavigationView navigationView;
-    private DrawerLayout drawer;
+
+    private ActivityMainBinding mBinding;
+
     private View navHeader;
     private ImageView imgNavHeaderBg, imgProfile;
     private TextView txtName, txtWebsite;
-    private Toolbar toolbar;
-    private FloatingActionButton fab;
 
     // urls to load navigation header background image
     // and profile image
@@ -65,19 +67,16 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(R.style.AppTheme_NoActionBar);
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        mBinding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+
+        setSupportActionBar(mBinding.include.toolbar);
 
         mHandler = new Handler();
 
-        drawer = findViewById(R.id.drawer_layout);
-        navigationView = findViewById(R.id.nav_view);
-        fab = findViewById(R.id.fab);
-
         // Navigation view header
-        navHeader = navigationView.getHeaderView(0);
+        navHeader = mBinding.navView.getHeaderView(0);
         txtName = navHeader.findViewById(R.id.name);
         txtWebsite = navHeader.findViewById(R.id.website);
         imgNavHeaderBg = navHeader.findViewById(R.id.img_header_bg);
@@ -86,13 +85,9 @@ public class MainActivity extends AppCompatActivity {
         // load toolbar titles from string resources
         activityTitles = getResources().getStringArray(R.array.nav_item_activity_titles);
 
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
+        mBinding.include.fab.setOnClickListener(view ->
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
+                .setAction("Action", null).show());
 
         // load nav menu header data
         loadNavHeader();
@@ -132,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
 //                .into(imgProfile);
 
         // showing dot next to notifications label
-        navigationView.getMenu().getItem(3).setActionView(R.layout.menu_dot);
+        mBinding.navView.getMenu().getItem(3).setActionView(R.layout.menu_dot);
     }
 
     /***
@@ -141,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void loadHomeFragment() {
         // selecting appropriate nav menu item
-        selectNavMenu();
+        mBinding.navView.getMenu().getItem(navItemIndex).setChecked(true);
 
         // set toolbar title
         setToolbarTitle();
@@ -149,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
         // if user select the current navigation menu again, don't do anything
         // just close the navigation drawer
         if (getSupportFragmentManager().findFragmentByTag(CURRENT_TAG) != null) {
-            drawer.closeDrawers();
+            mBinding.drawerLayout.closeDrawers();
 
             // show or hide the fab button
             toggleFab();
@@ -160,7 +155,7 @@ public class MainActivity extends AppCompatActivity {
         // show or hide the fab button
         toggleFab();
         //Closing drawer on item click
-        drawer.closeDrawers();
+        mBinding.drawerLayout.closeDrawers();
 
         // refresh toolbar menu
         invalidateOptionsMenu();
@@ -195,33 +190,28 @@ public class MainActivity extends AppCompatActivity {
 //        }
 
 
-        new Thread(new Runnable() {
-            public void run() {
-                try {
-                    TimeUnit.MILLISECONDS.sleep(300);
-                    mHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            // update the main content by replacing fragments
-                            Fragment fragment = getHomeFragment();
-                            FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
-                            fragmentTransaction.setCustomAnimations(android.R.anim.fade_in,
-                                    android.R.anim.fade_out);
-                            fragmentTransaction.replace(R.id.frame_container, fragment, CURRENT_TAG);
-                            fragmentTransaction.commitAllowingStateLoss();
-                        }
-                    });
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+        new Thread(() -> {
+            try {
+                TimeUnit.MILLISECONDS.sleep(300);
+                mHandler.post(() -> {
+                    // update the main content by replacing fragments
+                    Fragment fragment = getHomeFragment(navItemIndex);
+                    FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
+                    fragmentTransaction.setCustomAnimations(android.R.anim.fade_in,
+                            android.R.anim.fade_out);
+                    fragmentTransaction.replace(R.id.frame_container, fragment, CURRENT_TAG);
+                    fragmentTransaction.commitAllowingStateLoss();
+                });
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }).start();
 
 
     }
 
-    private Fragment getHomeFragment() {
-        switch (navItemIndex) {
+    private Fragment getHomeFragment(int position) {
+        switch (position) {
             case 0:
                 // home
                 HomeFragment homeFragment = new HomeFragment();
@@ -252,17 +242,14 @@ public class MainActivity extends AppCompatActivity {
         getSupportActionBar().setTitle(activityTitles[navItemIndex]);
     }
 
-    private void selectNavMenu() {
-        navigationView.getMenu().getItem(navItemIndex).setChecked(true);
-    }
 
     private void setUpNavigationView() {
         //Setting Navigation View Item Selected Listener to handle the item click of the navigation menu
-        navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
+        mBinding.navView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
 
             // This method will trigger on item Click of navigation menu
             @Override
-            public boolean onNavigationItemSelected(MenuItem menuItem) {
+            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
 
                 //Check to see which item was being clicked and perform appropriate action
                 switch (menuItem.getItemId()) {
@@ -290,12 +277,12 @@ public class MainActivity extends AppCompatActivity {
                     case R.id.nav_about_us:
                         // launch new intent instead of loading fragment
                         startActivity(new Intent(MainActivity.this, AboutUsActivity.class));
-                        drawer.closeDrawers();
+                        mBinding.drawerLayout.closeDrawers();
                         return true;
                     case R.id.nav_privacy_policy:
                         // launch new intent instead of loading fragment
                         startActivity(new Intent(MainActivity.this, PrivacyPolicyActivity.class));
-                        drawer.closeDrawers();
+                        mBinding.drawerLayout.closeDrawers();
                         return true;
                     default:
                         navItemIndex = 0;
@@ -316,7 +303,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
-        ActionBarDrawerToggle actionBarDrawerToggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.openDrawer, R.string.closeDrawer) {
+        ActionBarDrawerToggle actionBarDrawerToggle = new ActionBarDrawerToggle(this, mBinding.drawerLayout, mBinding.include.toolbar, R.string.openDrawer, R.string.closeDrawer) {
 
             @Override
             public void onDrawerClosed(View drawerView) {
@@ -332,7 +319,7 @@ public class MainActivity extends AppCompatActivity {
         };
 
         //Setting the actionbarToggle to drawer layout
-        drawer.setDrawerListener(actionBarDrawerToggle);
+        mBinding.drawerLayout.addDrawerListener(actionBarDrawerToggle);
 
         //calling sync state is necessary or else your hamburger icon wont show up
         actionBarDrawerToggle.syncState();
@@ -340,8 +327,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (drawer.isDrawerOpen(GravityCompat.START)) {
-            drawer.closeDrawers();
+        if (mBinding.drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            mBinding.drawerLayout.closeDrawers();
             return;
         }
 
@@ -408,8 +395,13 @@ public class MainActivity extends AppCompatActivity {
     // show or hide the fab
     private void toggleFab() {
         if (navItemIndex == 0)
-            fab.show();
+            mBinding.include.fab.show();
         else
-            fab.hide();
+            mBinding.include.fab.hide();
+    }
+
+    @Override
+    public void onClick(View v) {
+
     }
 }
